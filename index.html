@@ -25,7 +25,7 @@
     <!-- Controles de interface -->
     <div class="container mt-4">
         <div class="d-flex justify-content-between">
-            <input id="urlInput" type="text" class="form-control me-2" placeholder="Digite o URL do canal M3U">
+            <input id="urlInput" type="text" class="form-control me-2" value="https://ipbl.top/get.php?username=fabiocosta&password=895449174god&type=m3u_plus&output=m3u8" placeholder="Digite o URL do canal M3U">
             <button id="loadButton" class="btn btn-primary">Carregar Playlist</button>
             <button id="themeToggle" class="btn btn-secondary">Alternar Tema</button>
         </div>
@@ -58,7 +58,7 @@
 
         // Função para validar o URL
         function validateM3UUrl(url) {
-            const urlPattern = /^https?:\/\/[^\s]+\.m3u8?$/;
+            const urlPattern = /^https?:\/\/[^\s]+/;
             if (!urlPattern.test(url)) {
                 alert('Por favor, insira um URL válido.');
                 return false;
@@ -71,7 +71,11 @@
             if (!validateM3UUrl(url)) return;
 
             try {
+                // Verificar se o link é acessível antes de processar
                 const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Não foi possível acessar o URL fornecido.');
+                }
                 const data = await response.text();
                 parseM3U(data);
                 showToast('Playlist carregada com sucesso!');
@@ -163,20 +167,13 @@
             document.getElementById("loadingIndicator").classList.add("d-none");
         });
 
-        // Carregar playlist ao clicar no botão
-        loadButton.addEventListener("click", () => loadPlaylist(urlInput.value));
-
-        // Salvar preferências de volume no localStorage
-        videoPlayer.addEventListener('volumechange', () => {
-            localStorage.setItem('playerVolume', videoPlayer.volume);
+        // Evento de clique no botão de carregamento
+        loadButton.addEventListener("click", () => {
+            loadPlaylist(urlInput.value);
         });
 
-        const savedVolume = localStorage.getItem('playerVolume');
-        if (savedVolume) {
-            videoPlayer.volume = savedVolume;
-        }
+        // Carregar a playlist inicial
+        loadPlaylist(urlInput.value);
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
 </body>
 </html>
