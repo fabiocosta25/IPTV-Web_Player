@@ -1,0 +1,52 @@
+/* Custom CSS to adjust layout */
+#playlist {
+    background-color: #000000;
+    padding: 15px;
+    max-height: 100vh;
+    overflow-y: auto;
+}
+
+#videoPlayer {
+    width: 100%;
+    height: auto;
+}
+
+.input-group-btn {
+    display: flex;
+    align-items: center;
+}
+
+.btn-go {
+    margin-left: 10px;
+}
+
+.tv-logo {
+    width: 100px;
+}
+
+/* Apply subtle glow effect on hover */
+.channel:hover {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    transition: box-shadow 0.3s ease-in-out;
+}
+
+/* Change cursor to pointer on hover */
+.channel:hover {
+    cursor: pointer;
+}
+
+/* CSS for the billed message */
+.billed-msg {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background-color: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+/* Search bar styles */
+.search-bar {
+    margin-bottom: 10px;
+}
