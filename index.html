@@ -11,18 +11,17 @@
             background-color: #121212;
             color: #e0e0e0;
         }
-        /* Layout com scroll para a lista de canais */
-        #playlist {
-            max-height: 500px;
-            overflow-y: scroll;
+        /* Estilos de layout */
+        #playlist.show {
+            display: block !important;
         }
-        /* Estilos adicionais */
+        #playlist {
+            max-height: 400px; /* Limitar altura da lista de canais */
+            overflow-y: auto; /* Adicionar rolagem */
+        }
         .toast {
             opacity: 1;
             z-index: 1055;
-        }
-        #loadingIndicator {
-            display: none;
         }
     </style>
 </head>
@@ -30,7 +29,7 @@
     <!-- Controles de interface -->
     <div class="container mt-4">
         <div class="d-flex justify-content-between">
-            <input id="urlInput" type="text" class="form-control me-2" placeholder="Digite o URL do canal M3U" value="https://raw.githubusercontent.com/mariosanthos/IPTV/main/lista2%20m3u">
+            <input id="urlInput" type="text" class="form-control me-2" placeholder="Digite o URL do canal M3U"value="https://raw.githubusercontent.com/mariosanthos/IPTV/main/lista2%20m3u" value="https://raw.githubusercontent.com/mariosanthos/IPTV/main/lista2%20m3u">
             <button id="loadButton" class="btn btn-primary">Carregar Playlist</button>
             <button id="themeToggle" class="btn btn-secondary">Alternar Tema</button>
         </div>
@@ -42,7 +41,7 @@
             <div class="col-md-8">
                 <div id="playerContainer">
                     <video id="videoPlayer" controls class="w-100" style="max-height: 500px;"></video>
-                    <div id="loadingIndicator" class="text-center mt-3">Carregando...</div>
+                    <div id="loadingIndicator" class="text-center mt-3 d-none">Carregando...</div>
                 </div>
             </div>
             <div class="col-md-4">
@@ -60,40 +59,48 @@
         const searchInput = document.getElementById("searchInput");
         const playlistElement = document.getElementById("playlist");
         let playlistItems = [];
+        let hls = null;
 
-        // Carregar o tema ao iniciar
-        document.addEventListener("DOMContentLoaded", () => {
-            if (localStorage.getItem("theme") === "dark") {
-                document.body.classList.add("dark-mode");
+        // Função para validar o URL
+        function validateM3UUrl(url) {
+            const urlPattern = /^https?:\/\/[^\s]+\.m3u8?$/;
+            if (!urlPattern.test(url)) {
+                alert('Por favor, insira um URL válido.');
+                return false;
             }
-            // Carregar a playlist automaticamente ao iniciar
-            loadPlaylist(urlInput.value);
-        });
+            return true;
+        }
 
-        // Alternar e salvar o tema
-        document.getElementById("themeToggle").addEventListener("click", () => {
-            document.body.classList.toggle("dark-mode");
-            localStorage.setItem("theme", document.body.classList.contains("dark-mode") ? "dark" : "light");
-        });
-
-        // Função para carregar a playlist usando Xtream Codes
-        async function loadPlaylist(url) {
-            loadButton.disabled = true;
-            document.getElementById("loadingIndicator").style.display = "block";
+        // Função para verificar a disponibilidade do stream antes de carregar o canal
+        async function checkStreamAvailability(url) {
             try {
-                const response = await fetch(url);
-                const data = await response.text();
-                parseXtreamCodes(data);
-                showToast('Playlist carregada com sucesso!');
+                const response = await fetch(url, { method: 'HEAD' });
+                if (response.ok) {
+                    return true;
+                }
+                showError("O stream está inacessível ou o servidor está bloqueando o acesso.");
+                return false;
             } catch (error) {
-                showError('Erro ao carregar playlist: ' + error.message);
-            } finally {
-                loadButton.disabled = false;
-                document.getElementById("loadingIndicator").style.display = "none";
+                showError("Erro ao acessar o stream: " + error.message);
+                return false;
             }
         }
 
-        // Função para exibir uma mensagem de erro
+        // Função para carregar e analisar a lista de reprodução
+        async function loadPlaylist(url) {
+            if (!validateM3UUrl(url)) return;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.text();
+                parseM3U(data);
+                showToast('Playlist carregada com sucesso!');
+            } catch (error) {
+                showError('Erro ao carregar playlist: ' + error.message);
+            }
+        }
+
+        // Função para exibir mensagem de erro
         function showError(message) {
             const errorMessage = document.createElement('div');
             errorMessage.className = 'alert alert-danger mt-3';
@@ -112,27 +119,30 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // Analisar e renderizar a playlist Xtream Codes
-        function parseXtreamCodes(data) {
+        // Função para alternar entre temas claro e escuro
+        document.getElementById("themeToggle").addEventListener("click", () => {
+            document.body.classList.toggle("dark-mode");
+        });
+
+        // Analisar e renderizar playlist
+        function parseM3U(data) {
             const lines = data.split("\n");
             playlistItems = [];
-            
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
+            for (let line of lines) {
+                line = line.trim();
                 if (line.startsWith("#EXTINF:")) {
-                    const nameMatch = line.match(/,([^,]+)$/);
-                    const channelName = nameMatch ? nameMatch[1].trim() : "Canal Desconhecido";
-                    const url = lines[i + 1].trim();
+                    const channelName = line.split(",")[1];
+                    const url = lines[lines.indexOf(line) + 1];
                     playlistItems.push({ name: channelName, url: url });
                 }
             }
-            renderPlaylist();
+            renderPlaylist(playlistItems);
         }
 
         // Renderizar a lista de canais
-        function renderPlaylist(filteredItems = playlistItems) {
+        function renderPlaylist(items) {
             playlistElement.innerHTML = "";
-            filteredItems.forEach(item => {
+            items.forEach(item => {
                 const listItem = document.createElement("li");
                 listItem.className = "list-group-item";
                 listItem.textContent = item.name;
@@ -141,14 +151,27 @@
             });
         }
 
-        // Carregar canal no player com suporte a HLS.js
-        function loadChannel(url) {
+        // Carregar canal no player com suporte ao HLS.js
+        async function loadChannel(url) {
+            if (!(await checkStreamAvailability(url))) return;
+
+            // Limpar instância HLS anterior, se houver
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+
             if (Hls.isSupported()) {
-                const hls = new Hls();
+                hls = new Hls();
                 hls.loadSource(url);
                 hls.attachMedia(videoPlayer);
                 hls.on(Hls.Events.MANIFEST_PARSED, function() {
                     videoPlayer.play();
+                });
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    if (data.fatal) {
+                        showError("Erro fatal no vídeo. Tente outro canal.");
+                    }
                 });
             } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
                 videoPlayer.src = url;
@@ -174,14 +197,17 @@
         });
 
         // Carregar playlist ao clicar no botão
-        loadButton.addEventListener("click", () => {
-            const url = urlInput.value.trim();
-            if (!url) {
-                showError("Por favor, insira um URL válido.");
-                return;
-            }
-            loadPlaylist(url);
+        loadButton.addEventListener("click", () => loadPlaylist(urlInput.value));
+
+        // Salvar preferências de volume no localStorage
+        videoPlayer.addEventListener('volumechange', () => {
+            localStorage.setItem('playerVolume', videoPlayer.volume);
         });
+
+        const savedVolume = localStorage.getItem('playerVolume');
+        if (savedVolume) {
+            videoPlayer.volume = savedVolume;
+        }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
