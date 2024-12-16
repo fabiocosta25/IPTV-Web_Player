@@ -63,13 +63,15 @@
 
         // Função para validar o URL
         function validateM3UUrl(url) {
-            const urlPattern = /^https?:\/\/[^\s]+\.m3u8?$/;
-            if (!urlPattern.test(url)) {
-                alert('Por favor, insira um URL válido.');
-                return false;
+        // Alterada a validação para aceitar qualquer URL válido
+        const urlPattern = /^(https?:\/\/)[^\s]+$/;
+        if (!urlPattern.test(url)) {
+        alert('Por favor, insira um URL válido.');
+        return false;
             }
-            return true;
+        return true;
         }
+
 
         // Função para verificar a disponibilidade do stream antes de carregar o canal
         async function checkStreamAvailability(url) {
